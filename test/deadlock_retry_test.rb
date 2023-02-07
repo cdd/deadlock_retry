@@ -36,6 +36,10 @@ class MockModel
       @logger ||= Logger.new(nil)
     end
 
+    def logger=(logger)
+      @logger = logger
+    end
+
     def show_innodb_status
       []
     end
@@ -68,6 +72,7 @@ class DeadlockRetryTest < Minitest::Test
   TIMEOUT_ERROR = "MySQL::Error: Lock wait timeout exceeded"
 
   def setup
+    DeadlockRetry.class_variable_set(:@@deadlock_logger_severity, nil)
   end
 
   def test_no_errors
@@ -92,6 +97,33 @@ class DeadlockRetryTest < Minitest::Test
     end
   end
 
+  def test_logs_at_level_info_by_default
+    log_io = StringIO.new
+    log = Logger.new(log_io)
+    MockModel.logger = log
+    test_no_errors_with_lock_timeout
+    log_io.rewind
+    logs = log_io.read
+    [1, 2, 3].each do |i|
+      assert_match(/INFO -- : Deadlock detected on retry #{i}, restarting transaction/, logs)
+    end
+  end
+
+  def test_logs_at_specified_level
+    ENV['DEADLOCK_LOG_LEVEL'] = Logger::ERROR.to_s
+    log_io = StringIO.new
+    log = Logger.new(log_io)
+    MockModel.logger = log
+    test_no_errors_with_lock_timeout
+    log_io.rewind
+    logs = log_io.read
+    [1, 2, 3].each do |i|
+      assert_match(/ERROR -- : Deadlock detected on retry #{i}, restarting transaction/, logs)
+    end
+  ensure
+    ENV['DEADLOCK_LOG_LEVEL'] = nil
+  end
+
   def test_error_if_unrecognized_error
     assert_raises(ActiveRecord::StatementInvalid) do
       MockModel.transaction { raise ActiveRecord::StatementInvalid, "Something else" }
@@ -107,7 +139,6 @@ class DeadlockRetryTest < Minitest::Test
     MockModel.transaction {}
     assert_equal "show innodb status", DeadlockRetry.innodb_status_cmd
   end
-
 
   def test_error_in_nested_transaction_should_retry_outermost_transaction
     tries = 0

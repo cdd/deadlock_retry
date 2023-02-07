@@ -1,7 +1,7 @@
 require 'active_support/core_ext/module/attribute_accessors'
 
 module DeadlockRetry
-  mattr_accessor :innodb_status_cmd
+  mattr_accessor :innodb_status_cmd, :deadlock_logger_severity
 
   DEADLOCK_ERROR_MESSAGES = [
     "Deadlock found when trying to get lock",
@@ -23,7 +23,7 @@ module DeadlockRetry
       if DEADLOCK_ERROR_MESSAGES.any? { |msg| error.message =~ /#{Regexp.escape(msg)}/ }
         raise if retry_count >= MAXIMUM_RETRIES_ON_DEADLOCK
         retry_count += 1
-        logger.info "Deadlock detected on retry #{retry_count}, restarting transaction"
+        deadlock_logger { "Deadlock detected on retry #{retry_count}, restarting transaction" }
         log_innodb_status if DeadlockRetry.innodb_status_cmd
         exponential_pause(retry_count)
         retry
@@ -36,6 +36,20 @@ module DeadlockRetry
   private
 
   WAIT_TIMES = [0, 1, 2, 4, 8, 16, 32]
+
+  def deadlock_logger(&block)
+    DeadlockRetry.deadlock_logger_severity ||= begin
+      if ENV['DEADLOCK_LOG_LEVEL'].present?
+        Integer(ENV['DEADLOCK_LOG_LEVEL'])
+      else
+        Logger::INFO
+      end
+    rescue StandardError => e
+      logger.error("Failed to set deadlock error level: #{e}")
+      Logger::INFO
+    end
+    logger.add(DeadlockRetry.deadlock_logger_severity, nil, nil, &block)
+  end
 
   def exponential_pause(count)
     sec = WAIT_TIMES[count-1] || 32
@@ -69,7 +83,7 @@ module DeadlockRetry
         self.connection.select_value(cmd)
         DeadlockRetry.innodb_status_cmd = cmd
       rescue
-        logger.info "Cannot log innodb status: #{$!.message}"
+        deadlock_logger { "Cannot log innodb status: #{$!.message}" }
         DeadlockRetry.innodb_status_cmd = false
       end
     else
@@ -87,7 +101,7 @@ module DeadlockRetry
     end
   rescue => e
     # Access denied, ignore
-    logger.info "Cannot log innodb status: #{e.message}"
+    deadlock_logger { "Cannot log innodb status: #{e.message}" }
   end
 end
 
