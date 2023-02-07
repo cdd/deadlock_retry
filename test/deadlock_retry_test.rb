@@ -1,63 +1,67 @@
 require 'rubygems'
+require_relative 'test_helper'
 
 # Change the version if you want to test a different version of ActiveRecord
-gem 'activerecord', ENV['ACTIVERECORD_VERSION'] || ' ~>3.0'
+gem 'activerecord', ENV['ACTIVERECORD_VERSION'] || ' ~>6.0'
 require 'active_record'
 require 'active_record/version'
 puts "Testing ActiveRecord #{ActiveRecord::VERSION::STRING}"
 
-require 'test/unit'
+require 'minitest'
+require 'minitest/autorun'
 require 'mocha'
 require 'logger'
-require "deadlock_retry"
+require_relative "../lib/deadlock_retry"
 
 class MockModel
   @@open_transactions = 0
 
-  def self.transaction(*objects)
-    @@open_transactions += 1
-    yield
-  ensure
-    @@open_transactions -= 1
-  end
+  class << self
+    def transaction(*objects)
+      @@open_transactions += 1
+      yield
+    ensure
+      @@open_transactions -= 1
+    end
 
-  def self.open_transactions
-    @@open_transactions
-  end
+    def open_transactions
+      @@open_transactions
+    end
 
-  def self.connection
-    self
-  end
+    def connection
+      self
+    end
 
-  def self.logger
-    @logger ||= Logger.new(nil)
-  end
+    def logger
+      @logger ||= Logger.new(nil)
+    end
 
-  def self.show_innodb_status
-    []
-  end
+    def show_innodb_status
+      []
+    end
 
-  def self.select_rows(sql)
-    [['version', '5.1.45']]
-  end
+    def select_rows(sql)
+      [['version', '5.1.45']]
+    end
 
-  def self.select_value(sql)
-    true
-  end
+    def select_value(sql)
+      true
+    end
 
-  def self.adapter_name
-    "MySQL"
+    def adapter_name
+      "MySQL"
+    end
   end
 
   include DeadlockRetry
 end
 
-class DeadlockRetryTest < Test::Unit::TestCase
+class DeadlockRetryTest < Minitest::Test
   DEADLOCK_ERROR = "MySQL::Error: Deadlock found when trying to get lock"
   TIMEOUT_ERROR = "MySQL::Error: Lock wait timeout exceeded"
 
   def setup
-    MockModel.stubs(:exponential_pause)
+    # MockModel.stub(:exponential_pause)
   end
 
   def test_no_errors
@@ -77,13 +81,13 @@ class DeadlockRetryTest < Test::Unit::TestCase
   end
 
   def test_error_if_limit_exceeded
-    assert_raise(ActiveRecord::StatementInvalid) do
+    assert_raises(ActiveRecord::StatementInvalid) do
       MockModel.transaction { raise ActiveRecord::StatementInvalid, DEADLOCK_ERROR }
     end
   end
 
   def test_error_if_unrecognized_error
-    assert_raise(ActiveRecord::StatementInvalid) do
+    assert_raises(ActiveRecord::StatementInvalid) do
       MockModel.transaction { raise ActiveRecord::StatementInvalid, "Something else" }
     end
   end
