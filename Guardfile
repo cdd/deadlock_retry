@@ -18,6 +18,7 @@
 guard :minitest, spring: "rake test" do
   # with Minitest::Unit
   watch(%r{^test/(.*)\/?(.*)_test\.rb$})
+  watch(%r{^lib/(.+)\.rb$})         { |m| "test/#{m[1]}_test.rb" }
 
   # with Minitest::Spec
   # watch(%r{^spec/(.*)_spec\.rb$})

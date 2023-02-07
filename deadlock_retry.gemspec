@@ -17,4 +17,5 @@ Gem::Specification.new do |s|
   s.add_development_dependency 'mocha'
   s.add_development_dependency 'activerecord', ENV['ACTIVERECORD_VERSION'] || ' ~>6.0'
   s.add_development_dependency 'byebug'
+  s.add_development_dependency 'minitest-color'
 end

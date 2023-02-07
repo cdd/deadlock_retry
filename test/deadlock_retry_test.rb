@@ -53,15 +53,21 @@ class MockModel
     end
   end
 
-  include DeadlockRetry
+  singleton_class.prepend DeadlockRetry
 end
+
+module NoPause
+  def exponential_pause(_)
+    # No pause!
+  end
+end
+MockModel.singleton_class.prepend(NoPause)
 
 class DeadlockRetryTest < Minitest::Test
   DEADLOCK_ERROR = "MySQL::Error: Deadlock found when trying to get lock"
   TIMEOUT_ERROR = "MySQL::Error: Lock wait timeout exceeded"
 
   def setup
-    # MockModel.stub(:exponential_pause)
   end
 
   def test_no_errors
@@ -93,7 +99,7 @@ class DeadlockRetryTest < Minitest::Test
   end
 
   def test_included_by_default
-    assert ActiveRecord::Base.respond_to?(:transaction_with_deadlock_handling)
+    assert ActiveRecord::Base.singleton_class.ancestors.member?(DeadlockRetry)
   end
 
   def test_innodb_status_availability
