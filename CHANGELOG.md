@@ -1,5 +1,10 @@
 deadlock_retry changes
 
+== v2.0.0
+
+* Rearchitect to take advantage of ruby 2.0.  Should also work for ruby 3.
+* Add support to set the log level for retries
+
 == v1.2.0
 
 * Support for postgres (tomhughes)
@@ -22,5 +27,5 @@ deadlock_retry changes
 == v1.0 - (2009-02-07)
 
 * Add INNODB status logging for debugging deadlock issues.
-* Clean up so the code will run as a gem plugin. 
+* Clean up so the code will run as a gem plugin.
 * Small fix for ActiveRecord 2.1.x compatibility.
