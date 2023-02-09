@@ -41,7 +41,7 @@ module DeadlockRetry
   end
 
   def show_innodb_status
-    self.connection.select_value(DeadlockRetry.innodb_status_cmd)
+    self.connection.select_all(DeadlockRetry.innodb_status_cmd)
   end
 
   # Should we try to log innodb status -- if we don't have permission to,
