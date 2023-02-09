@@ -111,7 +111,7 @@ class DeadlockRetryTest < Minitest::Test
 
   def test_error_if_unrecognized_error
     assert_raises(ActiveRecord::StatementInvalid) do
-      MockModel.transaction { raise ActiveRecord::LockWaitTimeout, "Something else" }
+      MockModel.transaction { raise ActiveRecord::StatementInvalid, "Something else" }
     end
   end
 
