@@ -1,5 +1,9 @@
 deadlock_retry changes
 
+== v2.0.2
+
+* tweak the show_innodb_status code
+
 == v2.0.1
 
 * Use ActiveRecord::LockWaitTimeout
