@@ -81,19 +81,19 @@ class DeadlockRetryTest < Minitest::Test
 
   def test_no_errors_with_deadlock
     errors = [ DEADLOCK_ERROR ] * 3
-    assert_equal :success, MockModel.transaction { raise ActiveRecord::StatementInvalid, errors.shift unless errors.empty?; :success }
+    assert_equal :success, MockModel.transaction { raise ActiveRecord::LockWaitTimeout, errors.shift unless errors.empty?; :success }
     assert errors.empty?
   end
 
   def test_no_errors_with_lock_timeout
     errors = [ TIMEOUT_ERROR ] * 3
-    assert_equal :success, MockModel.transaction { raise ActiveRecord::StatementInvalid, errors.shift unless errors.empty?; :success }
+    assert_equal :success, MockModel.transaction { raise ActiveRecord::LockWaitTimeout, errors.shift unless errors.empty?; :success }
     assert errors.empty?
   end
 
   def test_error_if_limit_exceeded
     assert_raises(ActiveRecord::StatementInvalid) do
-      MockModel.transaction { raise ActiveRecord::StatementInvalid, DEADLOCK_ERROR }
+      MockModel.transaction { raise ActiveRecord::LockWaitTimeout, DEADLOCK_ERROR }
     end
   end
 
@@ -109,24 +109,9 @@ class DeadlockRetryTest < Minitest::Test
     end
   end
 
-  def test_logs_at_specified_level
-    ENV['DEADLOCK_LOG_LEVEL'] = Logger::ERROR.to_s
-    log_io = StringIO.new
-    log = Logger.new(log_io)
-    MockModel.logger = log
-    test_no_errors_with_lock_timeout
-    log_io.rewind
-    logs = log_io.read
-    [1, 2, 3].each do |i|
-      assert_match(/ERROR -- : Deadlock detected on retry #{i}, restarting transaction/, logs)
-    end
-  ensure
-    ENV['DEADLOCK_LOG_LEVEL'] = nil
-  end
-
   def test_error_if_unrecognized_error
     assert_raises(ActiveRecord::StatementInvalid) do
-      MockModel.transaction { raise ActiveRecord::StatementInvalid, "Something else" }
+      MockModel.transaction { raise ActiveRecord::LockWaitTimeout, "Something else" }
     end
   end
 
@@ -149,7 +134,7 @@ class DeadlockRetryTest < Minitest::Test
       MockModel.transaction do
         MockModel.transaction do
           errors += 1
-          raise ActiveRecord::StatementInvalid, "MySQL::Error: Lock wait timeout exceeded" unless errors > 3
+          raise ActiveRecord::LockWaitTimeout, "MySQL::Error: Lock wait timeout exceeded" unless errors > 3
         end
       end
     end

@@ -1,13 +1,7 @@
 require 'active_support/core_ext/module/attribute_accessors'
 
 module DeadlockRetry
-  mattr_accessor :innodb_status_cmd, :deadlock_logger_severity
-
-  DEADLOCK_ERROR_MESSAGES = [
-    "Deadlock found when trying to get lock",
-    "Lock wait timeout exceeded",
-    "deadlock detected"
-  ]
+  mattr_accessor :innodb_status_cmd
 
   MAXIMUM_RETRIES_ON_DEADLOCK = 3
 
@@ -18,38 +12,21 @@ module DeadlockRetry
 
     begin
       super(*objects, &block)
-    rescue ActiveRecord::StatementInvalid => error
+    rescue ActiveRecord::LockWaitTimeout => error
       raise if in_nested_transaction?
-      if DEADLOCK_ERROR_MESSAGES.any? { |msg| error.message =~ /#{Regexp.escape(msg)}/ }
-        raise if retry_count >= MAXIMUM_RETRIES_ON_DEADLOCK
-        retry_count += 1
-        deadlock_logger { "Deadlock detected on retry #{retry_count}, restarting transaction" }
-        log_innodb_status if DeadlockRetry.innodb_status_cmd
-        exponential_pause(retry_count)
-        retry
-      else
-        raise
-      end
+
+      raise if retry_count >= MAXIMUM_RETRIES_ON_DEADLOCK
+      retry_count += 1
+      logger.info { "Deadlock detected on retry #{retry_count}, restarting transaction" }
+      log_innodb_status if DeadlockRetry.innodb_status_cmd
+      exponential_pause(retry_count)
+      retry
     end
   end
 
   private
 
   WAIT_TIMES = [0, 1, 2, 4, 8, 16, 32]
-
-  def deadlock_logger(&block)
-    DeadlockRetry.deadlock_logger_severity ||= begin
-      if ENV['DEADLOCK_LOG_LEVEL'].present?
-        Integer(ENV['DEADLOCK_LOG_LEVEL'])
-      else
-        Logger::INFO
-      end
-    rescue StandardError => e
-      logger.error("Failed to set deadlock error level: #{e}")
-      Logger::INFO
-    end
-    logger.add(DeadlockRetry.deadlock_logger_severity, nil, nil, &block)
-  end
 
   def exponential_pause(count)
     sec = WAIT_TIMES[count-1] || 32
@@ -72,7 +49,7 @@ module DeadlockRetry
   def check_innodb_status_available
     return unless DeadlockRetry.innodb_status_cmd == nil
 
-    if self.connection.adapter_name == "MySQL"
+    if self.connection.adapter_name.match?(/mysql/i)
       begin
         mysql_version = self.connection.select_rows('show variables like \'version\'')[0][1]
         cmd = if mysql_version < '5.5'
@@ -83,7 +60,7 @@ module DeadlockRetry
         self.connection.select_value(cmd)
         DeadlockRetry.innodb_status_cmd = cmd
       rescue
-        deadlock_logger { "Cannot log innodb status: #{$!.message}" }
+        logger.info { "Cannot log innodb status: #{$!.message}" }
         DeadlockRetry.innodb_status_cmd = false
       end
     else
@@ -101,7 +78,7 @@ module DeadlockRetry
     end
   rescue => e
     # Access denied, ignore
-    deadlock_logger { "Cannot log innodb status: #{e.message}" }
+    logger.info { "Cannot log innodb status: #{e.message}" }
   end
 end
 
