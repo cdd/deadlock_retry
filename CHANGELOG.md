@@ -1,5 +1,11 @@
 deadlock_retry changes
 
+== v2.0.1
+
+* Use ActiveRecord::LockWaitTimeout
+* Update mysql connection check
+* Revert support to set the log level for retries
+
 == v2.0.0
 
 * Rearchitect to take advantage of ruby 2.0.  Should also work for ruby 3.
