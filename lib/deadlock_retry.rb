@@ -73,9 +73,7 @@ module DeadlockRetry
     # the transaction deadlocked.  log it.
     lines = show_innodb_status
     logger.warn "INNODB Status follows:"
-    lines.each_line do |line|
-      logger.warn line
-    end
+    logger.warn lines
   rescue => e
     # Access denied, ignore
     logger.info { "Cannot log innodb status: #{e.message}" }
