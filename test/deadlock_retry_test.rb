@@ -17,7 +17,7 @@ class MockModel
   @@open_transactions = 0
 
   class << self
-    def transaction(*objects)
+    def transaction(requires_new: nil, isolation: nil, joinable: true)
       @@open_transactions += 1
       yield
     ensure
@@ -77,6 +77,14 @@ class DeadlockRetryTest < Minitest::Test
 
   def test_no_errors
     assert_equal :success, MockModel.transaction { :success }
+  end
+
+  def test_no_errors_with_hash_params
+    assert_equal :success, MockModel.transaction(:requires_new => false) { :success }
+  end
+
+  def test_no_errors_with_hash_kw_params
+    assert_equal :success, MockModel.transaction(requires_new: false) { :success }
   end
 
   def test_no_errors_with_deadlock
