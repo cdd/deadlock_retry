@@ -5,13 +5,13 @@ module DeadlockRetry
 
   MAXIMUM_RETRIES_ON_DEADLOCK = 3
 
-  def transaction(*objects, &block)
+  def transaction(requires_new: nil, isolation: nil, joinable: true, &block)
     retry_count = 0
 
     check_innodb_status_available
 
     begin
-      super(*objects, &block)
+      super(requires_new: requires_new, isolation: isolation, joinable: joinable, &block)
     rescue ActiveRecord::LockWaitTimeout => error
       raise if in_nested_transaction?
 

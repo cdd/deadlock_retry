@@ -1,5 +1,9 @@
 deadlock_retry changes
 
+== v2.1.0
+
+* update for rails 5 keyword args
+
 == v2.0.3
 
 * tweak the show_innodb_status code
