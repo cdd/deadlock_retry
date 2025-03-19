@@ -12,12 +12,12 @@ module DeadlockRetry
 
     begin
       super(requires_new: requires_new, isolation: isolation, joinable: joinable, &block)
-    rescue ActiveRecord::LockWaitTimeout => error
+    rescue ActiveRecord::LockWaitTimeout, ActiveRecord::Deadlocked => e
       raise if in_nested_transaction?
 
       raise if retry_count >= MAXIMUM_RETRIES_ON_DEADLOCK
       retry_count += 1
-      logger.info { "Deadlock detected on retry #{retry_count}, restarting transaction" }
+      logger.info { "Deadlock detected on retry #{retry_count}, restarting transaction [#{e.class}]" }
       log_innodb_status if DeadlockRetry.innodb_status_cmd
       exponential_pause(retry_count)
       retry

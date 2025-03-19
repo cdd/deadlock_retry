@@ -2,7 +2,7 @@ require 'rubygems'
 require_relative 'test_helper'
 
 # Change the version if you want to test a different version of ActiveRecord
-gem 'activerecord', ENV['ACTIVERECORD_VERSION'] || ' ~>6.0'
+gem 'activerecord', ENV['ACTIVERECORD_VERSION'] || ' ~> 7.1.5.1'
 require 'active_record'
 require 'active_record/version'
 puts "Testing ActiveRecord #{ActiveRecord::VERSION::STRING}"
@@ -52,6 +52,16 @@ class MockModel
       true
     end
 
+    def select_all(sql)
+      if sql == 'show innodb status'
+        "FAKE INNODB STATUS HERE"
+      elsif sql = 'show engine innodb status'
+        "FAKE ENGINE INNODB STATUS HERE"
+      else
+        raise "Unknown SQL: #{sql}"
+      end
+    end
+
     def adapter_name
       "MySQL"
     end
@@ -89,7 +99,7 @@ class DeadlockRetryTest < Minitest::Test
 
   def test_no_errors_with_deadlock
     errors = [ DEADLOCK_ERROR ] * 3
-    assert_equal :success, MockModel.transaction { raise ActiveRecord::LockWaitTimeout, errors.shift unless errors.empty?; :success }
+    assert_equal :success, MockModel.transaction { raise ActiveRecord::Deadlocked, errors.shift unless errors.empty?; :success }
     assert errors.empty?
   end
 
@@ -99,13 +109,31 @@ class DeadlockRetryTest < Minitest::Test
     assert errors.empty?
   end
 
-  def test_error_if_limit_exceeded
+  def test_error_if_limit_exceeded_with_deadlock
     assert_raises(ActiveRecord::StatementInvalid) do
-      MockModel.transaction { raise ActiveRecord::LockWaitTimeout, DEADLOCK_ERROR }
+      MockModel.transaction { raise ActiveRecord::Deadlocked, DEADLOCK_ERROR }
     end
   end
 
-  def test_logs_at_level_info_by_default
+  def test_error_if_limit_exceeded_with_lock_timeout
+    assert_raises(ActiveRecord::StatementInvalid) do
+      MockModel.transaction { raise ActiveRecord::LockWaitTimeout, TIMEOUT_ERROR }
+    end
+  end
+
+  def test_logs_at_level_info_by_default_with_deadlock
+    log_io = StringIO.new
+    log = Logger.new(log_io)
+    MockModel.logger = log
+    test_no_errors_with_deadlock
+    log_io.rewind
+    logs = log_io.read
+    [1, 2, 3].each do |i|
+      assert_match(/INFO -- : Deadlock detected on retry #{i}, restarting transaction \[ActiveRecord::Deadlocked\]/, logs)
+    end
+  end
+
+  def test_logs_at_level_info_by_default_with_lock_timeout
     log_io = StringIO.new
     log = Logger.new(log_io)
     MockModel.logger = log
@@ -113,7 +141,7 @@ class DeadlockRetryTest < Minitest::Test
     log_io.rewind
     logs = log_io.read
     [1, 2, 3].each do |i|
-      assert_match(/INFO -- : Deadlock detected on retry #{i}, restarting transaction/, logs)
+      assert_match(/INFO -- : Deadlock detected on retry #{i}, restarting transaction \[ActiveRecord::LockWaitTimeout\]/, logs)
     end
   end
 
@@ -133,7 +161,7 @@ class DeadlockRetryTest < Minitest::Test
     assert_equal "show innodb status", DeadlockRetry.innodb_status_cmd
   end
 
-  def test_error_in_nested_transaction_should_retry_outermost_transaction
+  def test_error_in_nested_transaction_should_retry_outermost_transaction_with_lock_timeout
     tries = 0
     errors = 0
 
@@ -143,6 +171,23 @@ class DeadlockRetryTest < Minitest::Test
         MockModel.transaction do
           errors += 1
           raise ActiveRecord::LockWaitTimeout, "MySQL::Error: Lock wait timeout exceeded" unless errors > 3
+        end
+      end
+    end
+
+    assert_equal 4, tries
+  end
+
+  def test_error_in_nested_transaction_should_retry_outermost_transaction_with_deadlock
+    tries = 0
+    errors = 0
+
+    MockModel.transaction do
+      tries += 1
+      MockModel.transaction do
+        MockModel.transaction do
+          errors += 1
+          raise ActiveRecord::Deadlocked, "MySQL::Error: Deadlock found when trying to get lock" unless errors > 3
         end
       end
     end
