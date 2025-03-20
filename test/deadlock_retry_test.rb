@@ -171,6 +171,18 @@ class DeadlockRetryTest < Minitest::Test
     log_io.rewind
     logs = log_io.read
 
+    # here is an example output of the logs:
+    # I, [2025-03-20T20:54:47.157839 #8]  INFO -- : CDD_DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 1, retrying transaction in 0 seconds. [ActiveRecord::Deadlocked]
+    # W, [2025-03-20T20:54:47.157844 #8]  WARN -- : INNODB Status follows:
+    # W, [2025-03-20T20:54:47.157847 #8]  WARN -- : FAKE INNODB STATUS HERE
+    # I, [2025-03-20T20:54:47.157851 #8]  INFO -- : CDD_DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 2, retrying transaction in 1 seconds. [ActiveRecord::Deadlocked]
+    # W, [2025-03-20T20:54:47.157853 #8]  WARN -- : INNODB Status follows:
+    # W, [2025-03-20T20:54:47.157855 #8]  WARN -- : FAKE INNODB STATUS HERE
+    # I, [2025-03-20T20:54:47.157858 #8]  INFO -- : CDD_DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 3, retrying transaction in 2 seconds. [ActiveRecord::Deadlocked]
+    # W, [2025-03-20T20:54:47.157860 #8]  WARN -- : INNODB Status follows:
+    # W, [2025-03-20T20:54:47.157862 #8]  WARN -- : FAKE INNODB STATUS HERE
+    # I, [2025-03-20T20:54:47.157865 #8]  INFO -- : CDD_DEADLOCK_RETRY_MAXIMUM_RETRIES_EXCEEDED Deadlock detected and maximum retries exceeded (maximum: 3), not retrying. [ActiveRecord::Deadlocked]
+
     assert_includes(logs, "INFO -- : CDD_DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 1, retrying transaction in 0 seconds. [ActiveRecord::Deadlocked]")
     assert_includes(logs, "INFO -- : CDD_DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 2, retrying transaction in 1 seconds. [ActiveRecord::Deadlocked]")
     assert_includes(logs, "INFO -- : CDD_DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 3, retrying transaction in 2 seconds. [ActiveRecord::Deadlocked]")
@@ -187,9 +199,20 @@ class DeadlockRetryTest < Minitest::Test
       MockModel.transaction { raise ActiveRecord::LockWaitTimeout, TIMEOUT_ERROR }
     end
 
-    test_no_errors_with_lock_timeout
     log_io.rewind
     logs = log_io.read
+
+    # here is an example output of the logs:
+    # I, [2025-03-20T20:54:15.136562 #8]  INFO -- : CDD_DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 1, retrying transaction in 0 seconds. [ActiveRecord::LockWaitTimeout]
+    # W, [2025-03-20T20:54:15.136566 #8]  WARN -- : INNODB Status follows:
+    # W, [2025-03-20T20:54:15.136568 #8]  WARN -- : FAKE INNODB STATUS HERE
+    # I, [2025-03-20T20:54:15.136572 #8]  INFO -- : CDD_DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 2, retrying transaction in 1 seconds. [ActiveRecord::LockWaitTimeout]
+    # W, [2025-03-20T20:54:15.136575 #8]  WARN -- : INNODB Status follows:
+    # W, [2025-03-20T20:54:15.136577 #8]  WARN -- : FAKE INNODB STATUS HERE
+    # I, [2025-03-20T20:54:15.136580 #8]  INFO -- : CDD_DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 3, retrying transaction in 2 seconds. [ActiveRecord::LockWaitTimeout]
+    # W, [2025-03-20T20:54:15.136583 #8]  WARN -- : INNODB Status follows:
+    # W, [2025-03-20T20:54:15.136585 #8]  WARN -- : FAKE INNODB STATUS HERE
+    # I, [2025-03-20T20:54:15.136588 #8]  INFO -- : CDD_DEADLOCK_RETRY_MAXIMUM_RETRIES_EXCEEDED Deadlock detected and maximum retries exceeded (maximum: 3), not retrying. [ActiveRecord::LockWaitTimeout]
 
     assert_includes(logs, "INFO -- : CDD_DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 1, retrying transaction in 0 seconds. [ActiveRecord::LockWaitTimeout]")
     assert_includes(logs, "INFO -- : CDD_DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 2, retrying transaction in 1 seconds. [ActiveRecord::LockWaitTimeout]")
@@ -266,6 +289,26 @@ class DeadlockRetryTest < Minitest::Test
     log_io.rewind
     logs = log_io.read
 
+    # here is an example output of the logs:
+    # I, [2025-03-20T20:51:44.959981 #8]  INFO -- : CDD_DEADLOCK_RETRY_NESTED_TRANSACTION Deadlock detected in a nested transaction, not retrying. [ActiveRecord::Deadlocked]
+    # I, [2025-03-20T20:51:44.959996 #8]  INFO -- : CDD_DEADLOCK_RETRY_NESTED_TRANSACTION Deadlock detected in a nested transaction, not retrying. [ActiveRecord::Deadlocked]
+    # I, [2025-03-20T20:51:44.960000 #8]  INFO -- : CDD_DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 1, retrying transaction in 0 seconds. [ActiveRecord::Deadlocked]
+    # W, [2025-03-20T20:51:44.960003 #8]  WARN -- : INNODB Status follows:
+    # W, [2025-03-20T20:51:44.960005 #8]  WARN -- : FAKE INNODB STATUS HERE
+    # I, [2025-03-20T20:51:44.960009 #8]  INFO -- : CDD_DEADLOCK_RETRY_NESTED_TRANSACTION Deadlock detected in a nested transaction, not retrying. [ActiveRecord::Deadlocked]
+    # I, [2025-03-20T20:51:44.960022 #8]  INFO -- : CDD_DEADLOCK_RETRY_NESTED_TRANSACTION Deadlock detected in a nested transaction, not retrying. [ActiveRecord::Deadlocked]
+    # I, [2025-03-20T20:51:44.960026 #8]  INFO -- : CDD_DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 2, retrying transaction in 1 seconds. [ActiveRecord::Deadlocked]
+    # W, [2025-03-20T20:51:44.960041 #8]  WARN -- : INNODB Status follows:
+    # W, [2025-03-20T20:51:44.960043 #8]  WARN -- : FAKE INNODB STATUS HERE
+    # I, [2025-03-20T20:51:44.960047 #8]  INFO -- : CDD_DEADLOCK_RETRY_NESTED_TRANSACTION Deadlock detected in a nested transaction, not retrying. [ActiveRecord::Deadlocked]
+    # I, [2025-03-20T20:51:44.960059 #8]  INFO -- : CDD_DEADLOCK_RETRY_NESTED_TRANSACTION Deadlock detected in a nested transaction, not retrying. [ActiveRecord::Deadlocked]
+    # I, [2025-03-20T20:51:44.960063 #8]  INFO -- : CDD_DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 3, retrying transaction in 2 seconds. [ActiveRecord::Deadlocked]
+    # W, [2025-03-20T20:51:44.960085 #8]  WARN -- : INNODB Status follows:
+    # W, [2025-03-20T20:51:44.960088 #8]  WARN -- : FAKE INNODB STATUS HERE
+    # I, [2025-03-20T20:51:44.960108 #8]  INFO -- : CDD_DEADLOCK_RETRY_NESTED_TRANSACTION Deadlock detected in a nested transaction, not retrying. [ActiveRecord::Deadlocked]
+    # I, [2025-03-20T20:51:44.960124 #8]  INFO -- : CDD_DEADLOCK_RETRY_NESTED_TRANSACTION Deadlock detected in a nested transaction, not retrying. [ActiveRecord::Deadlocked]
+    # I, [2025-03-20T20:51:44.960128 #8]  INFO -- : CDD_DEADLOCK_RETRY_MAXIMUM_RETRIES_EXCEEDED Deadlock detected and maximum retries exceeded (maximum: 3), not retrying. [ActiveRecord::Deadlocked]
+
     assert_includes(logs, "INFO -- : CDD_DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 1, retrying transaction in 0 seconds. [ActiveRecord::Deadlocked]")
     assert_includes(logs, "INFO -- : CDD_DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 2, retrying transaction in 1 seconds. [ActiveRecord::Deadlocked]")
     assert_includes(logs, "INFO -- : CDD_DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 3, retrying transaction in 2 seconds. [ActiveRecord::Deadlocked]")
@@ -274,7 +317,7 @@ class DeadlockRetryTest < Minitest::Test
     assert_equal 8, logs.scan("CDD_DEADLOCK_RETRY_NESTED_TRANSACTION Deadlock detected in a nested transaction, not retrying. [ActiveRecord::Deadlocked]").size
   end
 
-  def test_logs_in_nested_transaction_with_deadlock
+  def test_logs_in_nested_transaction_with_lock_timeout
     log_io = StringIO.new
     log = Logger.new(log_io)
     MockModel.logger = log
@@ -291,6 +334,26 @@ class DeadlockRetryTest < Minitest::Test
 
     log_io.rewind
     logs = log_io.read
+
+    # here is an example output of the logs:
+    # I, [2025-03-20T20:53:01.650127 #7]  INFO -- : CDD_DEADLOCK_RETRY_NESTED_TRANSACTION Deadlock detected in a nested transaction, not retrying. [ActiveRecord::LockWaitTimeout]
+    # I, [2025-03-20T20:53:01.650143 #7]  INFO -- : CDD_DEADLOCK_RETRY_NESTED_TRANSACTION Deadlock detected in a nested transaction, not retrying. [ActiveRecord::LockWaitTimeout]
+    # I, [2025-03-20T20:53:01.650147 #7]  INFO -- : CDD_DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 1, retrying transaction in 0 seconds. [ActiveRecord::LockWaitTimeout]
+    # W, [2025-03-20T20:53:01.650150 #7]  WARN -- : INNODB Status follows:
+    # W, [2025-03-20T20:53:01.650152 #7]  WARN -- : FAKE INNODB STATUS HERE
+    # I, [2025-03-20T20:53:01.650156 #7]  INFO -- : CDD_DEADLOCK_RETRY_NESTED_TRANSACTION Deadlock detected in a nested transaction, not retrying. [ActiveRecord::LockWaitTimeout]
+    # I, [2025-03-20T20:53:01.650169 #7]  INFO -- : CDD_DEADLOCK_RETRY_NESTED_TRANSACTION Deadlock detected in a nested transaction, not retrying. [ActiveRecord::LockWaitTimeout]
+    # I, [2025-03-20T20:53:01.650172 #7]  INFO -- : CDD_DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 2, retrying transaction in 1 seconds. [ActiveRecord::LockWaitTimeout]
+    # W, [2025-03-20T20:53:01.650175 #7]  WARN -- : INNODB Status follows:
+    # W, [2025-03-20T20:53:01.650177 #7]  WARN -- : FAKE INNODB STATUS HERE
+    # I, [2025-03-20T20:53:01.650180 #7]  INFO -- : CDD_DEADLOCK_RETRY_NESTED_TRANSACTION Deadlock detected in a nested transaction, not retrying. [ActiveRecord::LockWaitTimeout]
+    # I, [2025-03-20T20:53:01.650192 #7]  INFO -- : CDD_DEADLOCK_RETRY_NESTED_TRANSACTION Deadlock detected in a nested transaction, not retrying. [ActiveRecord::LockWaitTimeout]
+    # I, [2025-03-20T20:53:01.650196 #7]  INFO -- : CDD_DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 3, retrying transaction in 2 seconds. [ActiveRecord::LockWaitTimeout]
+    # W, [2025-03-20T20:53:01.650199 #7]  WARN -- : INNODB Status follows:
+    # W, [2025-03-20T20:53:01.650201 #7]  WARN -- : FAKE INNODB STATUS HERE
+    # I, [2025-03-20T20:53:01.650205 #7]  INFO -- : CDD_DEADLOCK_RETRY_NESTED_TRANSACTION Deadlock detected in a nested transaction, not retrying. [ActiveRecord::LockWaitTimeout]
+    # I, [2025-03-20T20:53:01.650216 #7]  INFO -- : CDD_DEADLOCK_RETRY_NESTED_TRANSACTION Deadlock detected in a nested transaction, not retrying. [ActiveRecord::LockWaitTimeout]
+    # I, [2025-03-20T20:53:01.650220 #7]  INFO -- : CDD_DEADLOCK_RETRY_MAXIMUM_RETRIES_EXCEEDED Deadlock detected and maximum retries exceeded (maximum: 3), not retrying. [ActiveRecord::LockWaitTimeout]
 
     assert_includes(logs, "INFO -- : CDD_DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 1, retrying transaction in 0 seconds. [ActiveRecord::LockWaitTimeout]")
     assert_includes(logs, "INFO -- : CDD_DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 2, retrying transaction in 1 seconds. [ActiveRecord::LockWaitTimeout]")
