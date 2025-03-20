@@ -71,7 +71,7 @@ class MockModel
 end
 
 module NoPause
-  def exponential_pause(_)
+  def sleep_pause(_)
     # No pause!
   end
 end
@@ -83,6 +83,13 @@ class DeadlockRetryTest < Minitest::Test
 
   def setup
     DeadlockRetry.class_variable_set(:@@deadlock_logger_severity, nil)
+  end
+
+  def print_logs(logs)
+    puts "\n"
+    puts "*" * 100
+    puts logs
+    puts "@" * 100
   end
 
   def test_no_errors
@@ -110,14 +117,20 @@ class DeadlockRetryTest < Minitest::Test
   end
 
   def test_error_if_limit_exceeded_with_deadlock
-    assert_raises(ActiveRecord::StatementInvalid) do
-      MockModel.transaction { raise ActiveRecord::Deadlocked, DEADLOCK_ERROR }
+    assert_raises(ActiveRecord::Deadlocked) do
+      MockModel.transaction do
+        # this code will run a few times, but the raise will eventually break through
+        raise ActiveRecord::Deadlocked, DEADLOCK_ERROR
+      end
     end
   end
 
   def test_error_if_limit_exceeded_with_lock_timeout
-    assert_raises(ActiveRecord::StatementInvalid) do
-      MockModel.transaction { raise ActiveRecord::LockWaitTimeout, TIMEOUT_ERROR }
+    assert_raises(ActiveRecord::LockWaitTimeout) do
+      MockModel.transaction do
+        # this code will run a few times, but the raise will eventually break through
+        raise ActiveRecord::LockWaitTimeout, TIMEOUT_ERROR
+      end
     end
   end
 
@@ -128,9 +141,10 @@ class DeadlockRetryTest < Minitest::Test
     test_no_errors_with_deadlock
     log_io.rewind
     logs = log_io.read
-    [1, 2, 3].each do |i|
-      assert_match(/INFO -- : Deadlock detected on retry #{i}, restarting transaction \[ActiveRecord::Deadlocked\]/, logs)
-    end
+
+    assert_includes(logs, "INFO -- : DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 1, retrying transaction in 0 seconds. [ActiveRecord::Deadlocked]")
+    assert_includes(logs, "INFO -- : DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 2, retrying transaction in 1 seconds. [ActiveRecord::Deadlocked]")
+    assert_includes(logs, "INFO -- : DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 3, retrying transaction in 2 seconds. [ActiveRecord::Deadlocked]")
   end
 
   def test_logs_at_level_info_by_default_with_lock_timeout
@@ -140,9 +154,48 @@ class DeadlockRetryTest < Minitest::Test
     test_no_errors_with_lock_timeout
     log_io.rewind
     logs = log_io.read
-    [1, 2, 3].each do |i|
-      assert_match(/INFO -- : Deadlock detected on retry #{i}, restarting transaction \[ActiveRecord::LockWaitTimeout\]/, logs)
+    assert_includes(logs, "INFO -- : DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 1, retrying transaction in 0 seconds. [ActiveRecord::LockWaitTimeout]")
+    assert_includes(logs, "INFO -- : DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 2, retrying transaction in 1 seconds. [ActiveRecord::LockWaitTimeout]")
+    assert_includes(logs, "INFO -- : DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 3, retrying transaction in 2 seconds. [ActiveRecord::LockWaitTimeout]")
+  end
+
+  def test_logs_if_limit_exceeded_with_deadlock
+    log_io = StringIO.new
+    log = Logger.new(log_io)
+    MockModel.logger = log
+
+    assert_raises(ActiveRecord::Deadlocked) do
+      MockModel.transaction { raise ActiveRecord::Deadlocked, DEADLOCK_ERROR }
     end
+
+    log_io.rewind
+    logs = log_io.read
+
+    assert_includes(logs, "INFO -- : DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 1, retrying transaction in 0 seconds. [ActiveRecord::Deadlocked]")
+    assert_includes(logs, "INFO -- : DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 2, retrying transaction in 1 seconds. [ActiveRecord::Deadlocked]")
+    assert_includes(logs, "INFO -- : DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 3, retrying transaction in 2 seconds. [ActiveRecord::Deadlocked]")
+    refute_includes(logs, "INFO -- : DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 4")
+    assert_includes(logs, "INFO -- : DEADLOCK_RETRY_MAXIMUM_RETRIES_EXCEEDED Deadlock detected and maximum retries exceeded (maximum: 3), not retrying. [ActiveRecord::Deadlocked]")
+  end
+
+  def test_logs_if_limit_exceeded_with_lock_timeout
+    log_io = StringIO.new
+    log = Logger.new(log_io)
+    MockModel.logger = log
+
+    assert_raises(ActiveRecord::LockWaitTimeout) do
+      MockModel.transaction { raise ActiveRecord::LockWaitTimeout, TIMEOUT_ERROR }
+    end
+
+    test_no_errors_with_lock_timeout
+    log_io.rewind
+    logs = log_io.read
+
+    assert_includes(logs, "INFO -- : DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 1, retrying transaction in 0 seconds. [ActiveRecord::LockWaitTimeout]")
+    assert_includes(logs, "INFO -- : DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 2, retrying transaction in 1 seconds. [ActiveRecord::LockWaitTimeout]")
+    assert_includes(logs, "INFO -- : DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 3, retrying transaction in 2 seconds. [ActiveRecord::LockWaitTimeout]")
+    refute_includes(logs, "INFO -- : DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 4")
+    assert_includes(logs, "INFO -- : DEADLOCK_RETRY_MAXIMUM_RETRIES_EXCEEDED Deadlock detected and maximum retries exceeded (maximum: 3), not retrying. [ActiveRecord::LockWaitTimeout]")
   end
 
   def test_error_if_unrecognized_error
@@ -161,23 +214,6 @@ class DeadlockRetryTest < Minitest::Test
     assert_equal "show innodb status", DeadlockRetry.innodb_status_cmd
   end
 
-  def test_error_in_nested_transaction_should_retry_outermost_transaction_with_lock_timeout
-    tries = 0
-    errors = 0
-
-    MockModel.transaction do
-      tries += 1
-      MockModel.transaction do
-        MockModel.transaction do
-          errors += 1
-          raise ActiveRecord::LockWaitTimeout, "MySQL::Error: Lock wait timeout exceeded" unless errors > 3
-        end
-      end
-    end
-
-    assert_equal 4, tries
-  end
-
   def test_error_in_nested_transaction_should_retry_outermost_transaction_with_deadlock
     tries = 0
     errors = 0
@@ -187,11 +223,80 @@ class DeadlockRetryTest < Minitest::Test
       MockModel.transaction do
         MockModel.transaction do
           errors += 1
-          raise ActiveRecord::Deadlocked, "MySQL::Error: Deadlock found when trying to get lock" unless errors > 3
+          raise ActiveRecord::Deadlocked, DEADLOCK_ERROR unless errors > 3
         end
       end
     end
 
     assert_equal 4, tries
+  end
+
+  def test_error_in_nested_transaction_should_retry_outermost_transaction_with_lock_timeout
+    tries = 0
+    errors = 0
+
+    MockModel.transaction do
+      tries += 1
+      MockModel.transaction do
+        MockModel.transaction do
+          errors += 1
+          raise ActiveRecord::LockWaitTimeout, TIMEOUT_ERROR unless errors > 3
+        end
+      end
+    end
+
+    assert_equal 4, tries
+  end
+
+  def test_logs_in_nested_transaction_with_deadlock
+    log_io = StringIO.new
+    log = Logger.new(log_io)
+    MockModel.logger = log
+
+    assert_raises(ActiveRecord::Deadlocked) do
+      MockModel.transaction do
+        MockModel.transaction do
+          MockModel.transaction do
+            raise ActiveRecord::Deadlocked, DEADLOCK_ERROR
+          end
+        end
+      end
+    end
+
+    log_io.rewind
+    logs = log_io.read
+
+    assert_includes(logs, "INFO -- : DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 1, retrying transaction in 0 seconds. [ActiveRecord::Deadlocked]")
+    assert_includes(logs, "INFO -- : DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 2, retrying transaction in 1 seconds. [ActiveRecord::Deadlocked]")
+    assert_includes(logs, "INFO -- : DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 3, retrying transaction in 2 seconds. [ActiveRecord::Deadlocked]")
+    refute_includes(logs, "INFO -- : DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 4")
+    assert_includes(logs, "INFO -- : DEADLOCK_RETRY_MAXIMUM_RETRIES_EXCEEDED Deadlock detected and maximum retries exceeded (maximum: 3), not retrying. [ActiveRecord::Deadlocked]")
+    assert_equal 8, logs.scan("DeadlockRetry: [NESTED_TRANSACTION] Deadlock detected in a nested transaction, not retrying. [ActiveRecord::Deadlocked]").size
+  end
+
+  def test_logs_in_nested_transaction_with_deadlock
+    log_io = StringIO.new
+    log = Logger.new(log_io)
+    MockModel.logger = log
+
+    assert_raises(ActiveRecord::LockWaitTimeout) do
+      MockModel.transaction do
+        MockModel.transaction do
+          MockModel.transaction do
+            raise ActiveRecord::LockWaitTimeout, TIMEOUT_ERROR
+          end
+        end
+      end
+    end
+
+    log_io.rewind
+    logs = log_io.read
+
+    assert_includes(logs, "INFO -- : DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 1, retrying transaction in 0 seconds. [ActiveRecord::LockWaitTimeout]")
+    assert_includes(logs, "INFO -- : DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 2, retrying transaction in 1 seconds. [ActiveRecord::LockWaitTimeout]")
+    assert_includes(logs, "INFO -- : DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 3, retrying transaction in 2 seconds. [ActiveRecord::LockWaitTimeout]")
+    refute_includes(logs, "INFO -- : DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 4")
+    assert_includes(logs, "INFO -- : DEADLOCK_RETRY_MAXIMUM_RETRIES_EXCEEDED Deadlock detected and maximum retries exceeded (maximum: 3), not retrying. [ActiveRecord::LockWaitTimeout]")
+    assert_equal 8, logs.scan("DeadlockRetry: [NESTED_TRANSACTION] Deadlock detected in a nested transaction, not retrying. [ActiveRecord::LockWaitTimeout]").size
   end
 end

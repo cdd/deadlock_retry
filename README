@@ -35,3 +35,9 @@ exit
 # run the the test suite
 make test
 ```
+
+## Development
+
+```
+make guard
+```

@@ -13,13 +13,21 @@ module DeadlockRetry
     begin
       super(requires_new: requires_new, isolation: isolation, joinable: joinable, &block)
     rescue ActiveRecord::LockWaitTimeout, ActiveRecord::Deadlocked => e
-      raise if in_nested_transaction?
+      if in_nested_transaction?
+        logger.info { "DeadlockRetry: [NESTED_TRANSACTION] Deadlock detected in a nested transaction, not retrying. [#{e.class}]" }
+        raise
+      end
 
-      raise if retry_count >= MAXIMUM_RETRIES_ON_DEADLOCK
+      if retry_count >= MAXIMUM_RETRIES_ON_DEADLOCK
+        logger.info { "DEADLOCK_RETRY_MAXIMUM_RETRIES_EXCEEDED Deadlock detected and maximum retries exceeded (maximum: #{MAXIMUM_RETRIES_ON_DEADLOCK}), not retrying. [#{e.class}]" }
+        raise
+      end
+
       retry_count += 1
-      logger.info { "Deadlock detected on retry #{retry_count}, restarting transaction [#{e.class}]" }
+      pause_seconds = exponential_pause_seconds(retry_count)
+      logger.info { "DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry #{retry_count}, retrying transaction in #{pause_seconds} seconds. [#{e.class}]" }
       log_innodb_status if DeadlockRetry.innodb_status_cmd
-      exponential_pause(retry_count)
+      sleep_pause(pause_seconds)
       retry
     end
   end
@@ -28,11 +36,14 @@ module DeadlockRetry
 
   WAIT_TIMES = [0, 1, 2, 4, 8, 16, 32]
 
-  def exponential_pause(count)
-    sec = WAIT_TIMES[count-1] || 32
+  def exponential_pause_seconds(count)
     # sleep 0, 1, 2, 4, ... seconds up to the MAXIMUM_RETRIES.
     # Cap the pause time at 32 seconds.
-    sleep(sec) if sec != 0
+    WAIT_TIMES[count-1] || 32
+  end
+
+  def sleep_pause(seconds)
+    sleep(seconds) if seconds != 0
   end
 
   def in_nested_transaction?
