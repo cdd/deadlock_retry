@@ -14,18 +14,18 @@ module DeadlockRetry
       super(requires_new: requires_new, isolation: isolation, joinable: joinable, &block)
     rescue ActiveRecord::LockWaitTimeout, ActiveRecord::Deadlocked => e
       if in_nested_transaction?
-        logger.info { "DeadlockRetry: [NESTED_TRANSACTION] Deadlock detected in a nested transaction, not retrying. [#{e.class}]" }
+        logger.info { "CDD_DEADLOCK_RETRY_NESTED_TRANSACTION Deadlock detected in a nested transaction, not retrying. [#{e.class}]" }
         raise
       end
 
       if retry_count >= MAXIMUM_RETRIES_ON_DEADLOCK
-        logger.info { "DEADLOCK_RETRY_MAXIMUM_RETRIES_EXCEEDED Deadlock detected and maximum retries exceeded (maximum: #{MAXIMUM_RETRIES_ON_DEADLOCK}), not retrying. [#{e.class}]" }
+        logger.info { "CDD_DEADLOCK_RETRY_MAXIMUM_RETRIES_EXCEEDED Deadlock detected and maximum retries exceeded (maximum: #{MAXIMUM_RETRIES_ON_DEADLOCK}), not retrying. [#{e.class}]" }
         raise
       end
 
       retry_count += 1
       pause_seconds = exponential_pause_seconds(retry_count)
-      logger.info { "DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry #{retry_count}, retrying transaction in #{pause_seconds} seconds. [#{e.class}]" }
+      logger.info { "CDD_DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry #{retry_count}, retrying transaction in #{pause_seconds} seconds. [#{e.class}]" }
       log_innodb_status if DeadlockRetry.innodb_status_cmd
       sleep_pause(pause_seconds)
       retry

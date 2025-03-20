@@ -142,9 +142,9 @@ class DeadlockRetryTest < Minitest::Test
     log_io.rewind
     logs = log_io.read
 
-    assert_includes(logs, "INFO -- : DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 1, retrying transaction in 0 seconds. [ActiveRecord::Deadlocked]")
-    assert_includes(logs, "INFO -- : DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 2, retrying transaction in 1 seconds. [ActiveRecord::Deadlocked]")
-    assert_includes(logs, "INFO -- : DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 3, retrying transaction in 2 seconds. [ActiveRecord::Deadlocked]")
+    assert_includes(logs, "INFO -- : CDD_DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 1, retrying transaction in 0 seconds. [ActiveRecord::Deadlocked]")
+    assert_includes(logs, "INFO -- : CDD_DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 2, retrying transaction in 1 seconds. [ActiveRecord::Deadlocked]")
+    assert_includes(logs, "INFO -- : CDD_DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 3, retrying transaction in 2 seconds. [ActiveRecord::Deadlocked]")
   end
 
   def test_logs_at_level_info_by_default_with_lock_timeout
@@ -154,9 +154,9 @@ class DeadlockRetryTest < Minitest::Test
     test_no_errors_with_lock_timeout
     log_io.rewind
     logs = log_io.read
-    assert_includes(logs, "INFO -- : DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 1, retrying transaction in 0 seconds. [ActiveRecord::LockWaitTimeout]")
-    assert_includes(logs, "INFO -- : DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 2, retrying transaction in 1 seconds. [ActiveRecord::LockWaitTimeout]")
-    assert_includes(logs, "INFO -- : DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 3, retrying transaction in 2 seconds. [ActiveRecord::LockWaitTimeout]")
+    assert_includes(logs, "INFO -- : CDD_DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 1, retrying transaction in 0 seconds. [ActiveRecord::LockWaitTimeout]")
+    assert_includes(logs, "INFO -- : CDD_DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 2, retrying transaction in 1 seconds. [ActiveRecord::LockWaitTimeout]")
+    assert_includes(logs, "INFO -- : CDD_DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 3, retrying transaction in 2 seconds. [ActiveRecord::LockWaitTimeout]")
   end
 
   def test_logs_if_limit_exceeded_with_deadlock
@@ -171,11 +171,11 @@ class DeadlockRetryTest < Minitest::Test
     log_io.rewind
     logs = log_io.read
 
-    assert_includes(logs, "INFO -- : DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 1, retrying transaction in 0 seconds. [ActiveRecord::Deadlocked]")
-    assert_includes(logs, "INFO -- : DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 2, retrying transaction in 1 seconds. [ActiveRecord::Deadlocked]")
-    assert_includes(logs, "INFO -- : DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 3, retrying transaction in 2 seconds. [ActiveRecord::Deadlocked]")
-    refute_includes(logs, "INFO -- : DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 4")
-    assert_includes(logs, "INFO -- : DEADLOCK_RETRY_MAXIMUM_RETRIES_EXCEEDED Deadlock detected and maximum retries exceeded (maximum: 3), not retrying. [ActiveRecord::Deadlocked]")
+    assert_includes(logs, "INFO -- : CDD_DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 1, retrying transaction in 0 seconds. [ActiveRecord::Deadlocked]")
+    assert_includes(logs, "INFO -- : CDD_DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 2, retrying transaction in 1 seconds. [ActiveRecord::Deadlocked]")
+    assert_includes(logs, "INFO -- : CDD_DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 3, retrying transaction in 2 seconds. [ActiveRecord::Deadlocked]")
+    refute_includes(logs, "INFO -- : CDD_DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 4")
+    assert_includes(logs, "INFO -- : CDD_DEADLOCK_RETRY_MAXIMUM_RETRIES_EXCEEDED Deadlock detected and maximum retries exceeded (maximum: 3), not retrying. [ActiveRecord::Deadlocked]")
   end
 
   def test_logs_if_limit_exceeded_with_lock_timeout
@@ -191,11 +191,11 @@ class DeadlockRetryTest < Minitest::Test
     log_io.rewind
     logs = log_io.read
 
-    assert_includes(logs, "INFO -- : DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 1, retrying transaction in 0 seconds. [ActiveRecord::LockWaitTimeout]")
-    assert_includes(logs, "INFO -- : DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 2, retrying transaction in 1 seconds. [ActiveRecord::LockWaitTimeout]")
-    assert_includes(logs, "INFO -- : DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 3, retrying transaction in 2 seconds. [ActiveRecord::LockWaitTimeout]")
-    refute_includes(logs, "INFO -- : DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 4")
-    assert_includes(logs, "INFO -- : DEADLOCK_RETRY_MAXIMUM_RETRIES_EXCEEDED Deadlock detected and maximum retries exceeded (maximum: 3), not retrying. [ActiveRecord::LockWaitTimeout]")
+    assert_includes(logs, "INFO -- : CDD_DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 1, retrying transaction in 0 seconds. [ActiveRecord::LockWaitTimeout]")
+    assert_includes(logs, "INFO -- : CDD_DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 2, retrying transaction in 1 seconds. [ActiveRecord::LockWaitTimeout]")
+    assert_includes(logs, "INFO -- : CDD_DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 3, retrying transaction in 2 seconds. [ActiveRecord::LockWaitTimeout]")
+    refute_includes(logs, "INFO -- : CDD_DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 4")
+    assert_includes(logs, "INFO -- : CDD_DEADLOCK_RETRY_MAXIMUM_RETRIES_EXCEEDED Deadlock detected and maximum retries exceeded (maximum: 3), not retrying. [ActiveRecord::LockWaitTimeout]")
   end
 
   def test_error_if_unrecognized_error
@@ -266,12 +266,12 @@ class DeadlockRetryTest < Minitest::Test
     log_io.rewind
     logs = log_io.read
 
-    assert_includes(logs, "INFO -- : DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 1, retrying transaction in 0 seconds. [ActiveRecord::Deadlocked]")
-    assert_includes(logs, "INFO -- : DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 2, retrying transaction in 1 seconds. [ActiveRecord::Deadlocked]")
-    assert_includes(logs, "INFO -- : DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 3, retrying transaction in 2 seconds. [ActiveRecord::Deadlocked]")
-    refute_includes(logs, "INFO -- : DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 4")
-    assert_includes(logs, "INFO -- : DEADLOCK_RETRY_MAXIMUM_RETRIES_EXCEEDED Deadlock detected and maximum retries exceeded (maximum: 3), not retrying. [ActiveRecord::Deadlocked]")
-    assert_equal 8, logs.scan("DeadlockRetry: [NESTED_TRANSACTION] Deadlock detected in a nested transaction, not retrying. [ActiveRecord::Deadlocked]").size
+    assert_includes(logs, "INFO -- : CDD_DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 1, retrying transaction in 0 seconds. [ActiveRecord::Deadlocked]")
+    assert_includes(logs, "INFO -- : CDD_DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 2, retrying transaction in 1 seconds. [ActiveRecord::Deadlocked]")
+    assert_includes(logs, "INFO -- : CDD_DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 3, retrying transaction in 2 seconds. [ActiveRecord::Deadlocked]")
+    refute_includes(logs, "INFO -- : CDD_DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 4")
+    assert_includes(logs, "INFO -- : CDD_DEADLOCK_RETRY_MAXIMUM_RETRIES_EXCEEDED Deadlock detected and maximum retries exceeded (maximum: 3), not retrying. [ActiveRecord::Deadlocked]")
+    assert_equal 8, logs.scan("CDD_DEADLOCK_RETRY_NESTED_TRANSACTION Deadlock detected in a nested transaction, not retrying. [ActiveRecord::Deadlocked]").size
   end
 
   def test_logs_in_nested_transaction_with_deadlock
@@ -292,11 +292,11 @@ class DeadlockRetryTest < Minitest::Test
     log_io.rewind
     logs = log_io.read
 
-    assert_includes(logs, "INFO -- : DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 1, retrying transaction in 0 seconds. [ActiveRecord::LockWaitTimeout]")
-    assert_includes(logs, "INFO -- : DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 2, retrying transaction in 1 seconds. [ActiveRecord::LockWaitTimeout]")
-    assert_includes(logs, "INFO -- : DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 3, retrying transaction in 2 seconds. [ActiveRecord::LockWaitTimeout]")
-    refute_includes(logs, "INFO -- : DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 4")
-    assert_includes(logs, "INFO -- : DEADLOCK_RETRY_MAXIMUM_RETRIES_EXCEEDED Deadlock detected and maximum retries exceeded (maximum: 3), not retrying. [ActiveRecord::LockWaitTimeout]")
-    assert_equal 8, logs.scan("DeadlockRetry: [NESTED_TRANSACTION] Deadlock detected in a nested transaction, not retrying. [ActiveRecord::LockWaitTimeout]").size
+    assert_includes(logs, "INFO -- : CDD_DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 1, retrying transaction in 0 seconds. [ActiveRecord::LockWaitTimeout]")
+    assert_includes(logs, "INFO -- : CDD_DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 2, retrying transaction in 1 seconds. [ActiveRecord::LockWaitTimeout]")
+    assert_includes(logs, "INFO -- : CDD_DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 3, retrying transaction in 2 seconds. [ActiveRecord::LockWaitTimeout]")
+    refute_includes(logs, "INFO -- : CDD_DEADLOCK_RETRY_RETRYING_TRANSACTION Deadlock detected on retry 4")
+    assert_includes(logs, "INFO -- : CDD_DEADLOCK_RETRY_MAXIMUM_RETRIES_EXCEEDED Deadlock detected and maximum retries exceeded (maximum: 3), not retrying. [ActiveRecord::LockWaitTimeout]")
+    assert_equal 8, logs.scan("CDD_DEADLOCK_RETRY_NESTED_TRANSACTION Deadlock detected in a nested transaction, not retrying. [ActiveRecord::LockWaitTimeout]").size
   end
 end
