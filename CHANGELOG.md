@@ -1,5 +1,9 @@
 deadlock_retry changes
 
+== v2.2.0
+
+* Retry on ActiveRecord::Deadlocked, in addition to ActiveRecord::LockWaitTimeout
+
 == v2.1.0
 
 * update for rails 5 keyword args
