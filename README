@@ -15,3 +15,43 @@ Add it to your Rails application by installing the gem:
 and including a reference to it in your application's Gemfile:
 
   gem 'deadlock_retry'
+
+
+## Installation
+
+```
+cd ~/dev
+git clone git@github.com:cdd/deadlock_retry.git
+cd deadlock_retry
+
+# build the docker container
+make
+
+# manually update the Gemfile.lock
+make shell
+bundle install
+exit
+
+# run the the test suite
+make test
+```
+
+## Development
+
+```
+make guard
+```
+
+## Bumping the version
+
+1. Bump the version number in `lib/deadlock_retry/version.rb`
+
+2. Add an entry to `CHANGELOG.md`
+
+3. Run the following so Gemfile.lock is updated:
+
+```
+make shell
+bundle install
+exit
+```
