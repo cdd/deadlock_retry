@@ -85,13 +85,6 @@ class DeadlockRetryTest < Minitest::Test
     DeadlockRetry.class_variable_set(:@@deadlock_logger_severity, nil)
   end
 
-  def print_logs(logs)
-    puts "\n"
-    puts "*" * 100
-    puts logs
-    puts "@" * 100
-  end
-
   def test_no_errors
     assert_equal :success, MockModel.transaction { :success }
   end
