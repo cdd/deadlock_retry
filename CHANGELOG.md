@@ -1,6 +1,6 @@
 deadlock_retry changes
 
-== v2.2.0
+== v2.2.1
 
 * Retry on ActiveRecord::Deadlocked, in addition to ActiveRecord::LockWaitTimeout
 

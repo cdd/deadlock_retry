@@ -41,3 +41,17 @@ make test
 ```
 make guard
 ```
+
+## Bumping the version
+
+1. Bump the version number in `lib/deadlock_retry/version.rb`
+
+2. Add an entry to `CHANGELOG.md`
+
+3. Run the following so Gemfile.lock is updated:
+
+```
+make shell
+bundle install
+exit
+```
